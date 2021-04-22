@@ -17,20 +17,21 @@ import zipfile
 from datetime import date
 
 import matplotlib.pyplot as plt 
+from functools import reduce
 
 '''preprocess'''
 cwd = os.getcwd()
 iodir = f'{cwd}/io'
 data_dir= f'{iodir}/data/'
 
-parse_dir = {'F-F_Momentum_Factor_daily_CSV':(13, None,'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Momentum_Factor_daily_CSV.zip'),
+parse_dict = {'F-F_Momentum_Factor_daily_CSV':(13, None,'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Momentum_Factor_daily_CSV.zip'),
             'F-F_Research_Data_Factors_daily_CSV':(4, None,'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_Factors_daily_CSV.zip'),
-            'F-F_ST_Reversal_Factor_daily_CSV':(4, None, 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_ST_Reversal_Factor_daily_CSV.zip'),
+            'F-F_ST_Reversal_Factor_daily_CSV':(13, None, 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_ST_Reversal_Factor_daily_CSV.zip'),
             'F-F_LT_Reversal_Factor_daily_CSV':(13, None, 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_LT_Reversal_Factor_daily_CSV.zip')}
             # name: (skiprows, splitrow_str, zip_path)
 
 def get_fama_french(datafile):
-    skiprows, splitrow_str, url = parse_dir.get(datafile)
+    skiprows, splitrow_str, url = parse_dict.get(datafile)
     name = datafile #url.split('.', -1)[-2].split('/',-1)[-1] # extract file name from url
     print(f"Parsing {name}: SkipRows:{skiprows}, Split@{splitrow_str}")
 
@@ -60,14 +61,21 @@ def get_fama_french(datafile):
         return x/100 # convert values from percentages to decimals
     for c in ff_factors.columns:
         ff_factors[c] = pd.to_numeric(ff_factors[c]).apply(fx)
-    print(ff_factors.tail())
 
     return ff_factors
 
 
-get_fama_french('F-F_LT_Reversal_Factor_daily_CSV')
 
+def concat_ff_factors():
+    frames = []
+    for k,v in parse_dict.items():
+        _ = get_fama_french(k)
+        frames.append(_)
+    df = reduce(lambda x, y: pd.merge(x, y, on = 'date'), frames)
 
+    print(df.tail())
+
+concat_ff_factors()
 
 # '''analysis'''
 
