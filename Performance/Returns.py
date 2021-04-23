@@ -52,7 +52,10 @@ def price_returns(symbol = [], date_start = None, date_end = today, time_sample 
                 pass
             distro_plot()
     else:
-        pass
+        df = yf.download(symbol,date_start)['Adj Close']
+        return df
+
+
 
         #todo: add multiplot and support arr instead of symbol
         # to do: datasist box plots? & timeplots?
