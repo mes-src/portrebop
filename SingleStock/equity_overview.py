@@ -14,8 +14,10 @@ from datetime import datetime
 from datasist import timeseries as dts
 
 import ts_utils as util
+import statsmodels.tsa.api as tsa
 
 
+import sys, os
 def multi_plot(df):
     ((df.pct_change()+1).cumprod()).plot(figsize=(10, 7))
 
@@ -113,11 +115,11 @@ def practical_time_series(sdf, cdf):
     util.autoregression(data =sdf, col_name='Adj Close')
     util.arima(data =sdf, col_name='Adj Close')
 
-    
+
 
 def init():
 
-    COMPETITORS =['AMZ','MSFT','GOOGL']
+    COMPETITORS =['AMZN','MSFT','GOOGL']
     SINGLE_TICKER = COMPETITORS[0]  
 
     def get_cbind_onloop(tickers_list):
@@ -128,7 +130,20 @@ def init():
     cdf = get_cbind_onloop(COMPETITORS)
     sdf = web.DataReader(SINGLE_TICKER, 'yahoo', start='2014', end=datetime(2017, 5, 24))
 
+    
+    # pass into decomposition volatility script
+    import inspect
+    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    parentdir = (os.path.dirname(currentdir))
+    sys.path.append(parentdir)
+    from Attribution.Volatility import decomposition as decomp
+    components = tsa.seasonal_decompose(sdf['Adj Close'], model='additive', freq = 30)
+    decomp.additive_components(components)
+    #differencing() #requires comparison; pass broader index
+    decomp.autocorrelations(sdf['Adj Close'], the_title=SINGLE_TICKER)
+    
     ''' init '''
+
     multi_plot(cdf)
     describe_data(cdf, SINGLE_TICKER)
     solo_analysis(sdf)

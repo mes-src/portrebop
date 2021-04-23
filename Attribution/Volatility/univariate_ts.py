@@ -35,6 +35,15 @@ We iterate over various (p, q) lag combinations and collect diagnostic statistic
 
 
 '''
+
+def plot_model_summary(model_summary, title = None):
+    plt.rc('figure', figsize=(12, 7))
+    plt.text(0.01, 0.05, str(model_summary), {'fontsize': 10}, fontproperties = 'monospace') # approach improved by OP -> monospace!
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(f'{str(p)}{title}.png')
+
+
 def plot_correlogram(x, lags=None, title=None):    
     lags = min(10, int(len(x)/5)) if lags is None else lags
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(14, 8))
@@ -65,6 +74,13 @@ def univariate_time_series_model():
     industrial_production = web.DataReader('IPGMFN', 'fred', '1988', '2017-12').squeeze().dropna()
     industrial_production_log = np.log(industrial_production)
     industrial_production_log_diff = industrial_production_log.diff(12).dropna()
+
+    ''' general ARMA '''
+    model = tsa.ARMA(endog=industrial_production_log_diff, order=(1, 4)).fit()
+    print(model.summary())
+    plot_model_summary(model.summary(), title = 'ARMA_model_summary')
+    plot_correlogram(model.resid, title='arma_corr')
+
 
 
     model1 = tsa.statespace.SARIMAX(industrial_production_log, order=(2,0,2), seasonal_order=(0,1,0,12)).fit()
@@ -123,29 +139,27 @@ def univariate_time_series_model():
     plt.show()
     fig1.savefig(f'{str(p)}RMSE_heatmap.png')
 
-
-
     sns.heatmap(test_results.BIC.unstack(), fmt='.2f', annot=True, cmap='Blues_r')
     fig2 = plt.gcf()
     plt.show()
     fig2.savefig(f'{str(p)}BIC_heatmap.png')
 
-    model = tsa.ARMA(endog=industrial_production_log_diff, order=(0, 4)).fit()
-    print(model.summary())
-    plot_correlogram(model.resid, title='arma_corr')
+
+  
 
 
+    ''' utilize optimized ARMA lags'''
     best_p, best_q = test_results.rank().loc[:, ['RMSE', 'BIC']].mean(1).idxmin()
     best_arma_model = tsa.ARMA(endog=industrial_production_log_diff, order=(best_p, best_q)).fit()
     print(best_arma_model.summary())
+    plot_model_summary(model.summary(), title = 'Best_ARMA_model_summary')
     plot_correlogram(best_arma_model.resid, lags=20, title='Residuals_ARMA')
  
-
-
-    
+    ''' SARIMAX '''
     best_model = tsa.SARIMAX(endog=industrial_production_log_diff, order=(2, 0, 3),
                             seasonal_order=(1, 0, 0, 12)).fit()
     print(best_model.summary())
+    plot_model_summary(model.summary(), title = 'SARIMAX_model_summary')
     plot_correlogram(best_model.resid, lags=20, title='Residuals_SARIMAX')
  
 

@@ -25,10 +25,15 @@ import pandas as pd
 import numpy as np 
 from numpy.linalg import LinAlgError
 import matplotlib.pyplot as plt
+import datetime
+
 
 p = os.getcwd() +'/io/'
 
+
+
 industrial_production = web.DataReader('IPGMFN','fred','2000','2020-12').squeeze()
+print(industrial_production.head())
 print(type(industrial_production.head()))
 components = tsa.seasonal_decompose(industrial_production, model='additive')
 
@@ -39,7 +44,7 @@ def additive_components(components):
 
     plt.show()
     fig1.savefig(str(p) +'Additive Components.png')
-additive_components(components)
+# additive_components(components)
 
 
 def differencing():
@@ -113,13 +118,13 @@ def differencing():
 
         fig1.savefig(str(p)  +'Differencing.png')
 
-differencing()
+# differencing()
 
 
 
-def autocorrelations():
-    industrial_production = web.DataReader('IPGMFN', 'fred', '1988', '2017-12').squeeze().dropna()
-    industrial_production_log = np.log(industrial_production)
+def autocorrelations(data, the_title=None):
+    # industrial_production = web.DataReader('IPGMFN', 'fred', '1988', '2017-12').squeeze().dropna()
+    industrial_production_log = np.log(data)
     industrial_production_log_diff = industrial_production_log.diff(12).dropna() # seasonal differencing => yoy instantanteous returns
 
 
@@ -147,10 +152,10 @@ def autocorrelations():
         fig.tight_layout()
         fig.subplots_adjust(top=.9)
 
-    plot_correlogram(industrial_production_log_diff, title='Industrial Production (Seasonal Diff)')
+    plot_correlogram(industrial_production_log_diff, title=f'{the_title} AutoCorrelation')
     fig1 = plt.gcf()
     plt.show()
     fig1.savefig(str(p)  +'AutoCorrelation.png')
-autocorrelations()
+# autocorrelations()
 
 
