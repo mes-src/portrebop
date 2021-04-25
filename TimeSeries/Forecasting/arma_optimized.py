@@ -59,44 +59,52 @@ def plot_correlogram(x, lags=None, title=None):
     fig1.savefig(f'{str(iop)}{title}.png')
 
 
-def get_data():
+def get_data(d):
+    series_name = 'X'
 
-    import yfinance as yf 
-    time_series = yf.download('X','2010-01-01')['Adj Close'].squeeze().dropna()
+    import yfinance as yf
+    time_series = yf.download(series_name,'2019-12-01')['Adj Close'].squeeze().dropna()
+    #time_series.index = time_series.index.to_period('M')
+
+    # time_series = web.DataReader('IPGMFN', 'fred', '1988', '2017-12').squeeze().dropna() # industrial production
+
     time_series_log = np.log(time_series)
-    time_series_log_diff = time_series_log.diff(12).dropna()
+    time_series_log_diff = time_series_log.diff(d).dropna() # differencing of raw observations to make series stationary ("I" Integrated); represents d in ARIMA order (p,d,q)
     # print(time_series_log.isna().sum())
 
-
-    ''' industrial production '''
-    # time_series = web.DataReader('IPGMFN', 'fred', '1988', '2017-12').squeeze().dropna()
-    # time_series_log = np.log(time_series)
-    # time_series_log_diff = time_series_log.diff(12).dropna()
-
-    return (time_series, time_series_log, time_series_log_diff)
+    return (series_name, time_series, time_series_log, time_series_log_diff)
 
 
 def univariate_time_series_model():
+    ''' @ set params '''
+    initial_p, initial_q = (1,4)
+    pq_iterations = 5
+    # p_values = [0, 1, 2, 4, 6, 8, 10]
+    # d_values = range(0, 3)
+    # q_values = range(0, 3)
+    d = 12
 
-    time_series, time_series_log, time_series_log_diff = get_data()
 
-    ''' ARMA '''
-    model = tsa.ARMA(endog=time_series_log_diff, order=(1, 6)).fit() #(1,4)
+    series_name, time_series, time_series_log, time_series_log_diff = get_data(d)
+
+
+    ''' ARMA ''' # but we are using the x_log_diff time series data to fit the ARMA model --> primitive AR"I"MA
+    model = tsa.ARMA(endog=time_series_log_diff, order=(initial_p, initial_q)).fit() # endogenous variable; order(p,q) ---> ARIMA order is really (p,d,q) ; p=autoregressive, q=movingaverage
     print(model.summary())
-    plot_model_summary(model.summary(), title = 'ARMA_model_summary_00')
-    plot_correlogram(model.resid, title='arma_corr')
+    plot_model_summary(model.summary(), title = f'ARMA_Model_Summary_{initial_p}_{initial_q}_{series_name}')
+    plot_correlogram(model.resid, title=f'ARMA_Residuals_Correlogram_{series_name}')
 
 
     '''
-    find optimal ARMA lags "We iterate over various (p, q) lag combinations 
-    and collect diagnostic statistics to compare the result." 
+    Find optimal ARMA lags "We iterate over various (p, q) lag combinations 
+    & collect diagnostic statistics to compare the result" 
     '''
-    
+
     train_size = 120
     test_results = {}
     y_true = time_series_log_diff.iloc[train_size:]
-    for p in range(5):
-        for q in range(5):
+    for p in range(pq_iterations):
+        for q in range(pq_iterations):
             aic, bic = [], []
             if p == 0 and q == 0:
                 continue
@@ -117,7 +125,7 @@ def univariate_time_series_model():
                 aic.append(model.aic)
                 bic.append(model.bic)
 
-            result = (pd.DataFrame({'y_true': y_true, 'y_pred': y_pred}) # collect results of this instance of the iteration
+            result = (pd.DataFrame({'y_true': y_true, 'y_pred': y_pred}) # collect results on this instance of the iteration
                     .replace(np.inf, np.nan)
                     .dropna())
 
@@ -140,28 +148,25 @@ def univariate_time_series_model():
     print(test_results.nsmallest(5, columns=['RMSE']))
     print(test_results.nsmallest(5, columns=['BIC']))
 
+    # '''Root mean squared error'''
     sns.heatmap(test_results.RMSE.unstack().mul(10), fmt='.2', annot=True, cmap='Blues_r')
     fig1 = plt.gcf()
     plt.show()
-    fig1.savefig(f'{str(iop)}RMSE_heatmap.png')
+    fig1.savefig(f'{str(iop)}{series_name}_RMSE_heatmap.png')
 
+    # '''Bayesian Information Criterion'''
     sns.heatmap(test_results.BIC.unstack(), fmt='.2f', annot=True, cmap='Blues_r')
     fig2 = plt.gcf()
     plt.show()
-    fig2.savefig(f'{str(iop)}BIC_heatmap.png')
+    fig2.savefig(f'{str(iop)}{series_name}_BIC_heatmap.png')
 
-
-    ''' use optimized ARMA lags to refit model '''
+    #''' use optimized ARMA lags to refit model '''
     best_p, best_q = test_results.rank().loc[:, ['RMSE', 'BIC']].mean(1).idxmin()  # utilize best p,q values as determined by lowest RMSE,BIC
     best_arma_model = tsa.ARMA(endog=time_series_log_diff, order=(best_p, best_q)).fit()
     print(best_arma_model.summary())
-    plot_model_summary(best_arma_model.summary(), title = 'best_ARMA_model_summary')
-    plot_correlogram(best_arma_model.resid, lags=20, title='Residuals_ARMA')
+    plot_model_summary(best_arma_model.summary(), title = f'ARMA_Opt_Model_Summary_Opt_{best_p}_{best_q}_{series_name}')
+    plot_correlogram(best_arma_model.resid, lags=20, title=f'ARMA_Opt_Residuals_Correlogram_{best_p}_{best_q}_{series_name}')
  
-
-
-
-
 
 
 univariate_time_series_model()
